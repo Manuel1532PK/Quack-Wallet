@@ -1,0 +1,22 @@
+{
+  "name": "proyecto-bv",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Manuel1532PK/desarrollo-de-plataformas.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Manuel1532PK/desarrollo-de-plataformas/issues"
+  },
+  "homepage": "https://github.com/Manuel1532PK/desarrollo-de-plataformas#readme",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
