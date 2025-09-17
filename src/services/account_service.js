@@ -75,57 +75,41 @@ exports.transfer = async (transferData) => {
             'SELECT Saldo FROM Billeteras WHERE Usuarios_ID_Usuarios = ? AND Moneda = ?',
             [usuario_origen, moneda]
         );
-        
-        if (!saldoRows[0] || saldoRows[0].Saldo < monto) {
-            throw new Error('Saldo insuficiente');
-        }
-        
+
+        return saldoRows
+
+        //opciones a futuro
+
         // 2. Iniciar transacción
-        await db.beginTransaction();
-        
         // 3. Restar del usuario origen
-        await db.execute(
-            'UPDATE Billeteras SET Saldo = Saldo - ? WHERE Usuarios_ID_Usuarios = ? AND Moneda = ?',
-            [monto, usuario_origen, moneda]
-        );
-        
         // 4. Sumar al usuario destino (o crear billetera si no existe)
-        const [destinoRows] = await db.execute(
-            'SELECT ID_Billetera FROM Billeteras WHERE Usuarios_ID_Usuarios = ? AND Moneda = ?',
-            [usuario_destino, moneda]
-        );
-        
-        if (destinoRows[0]) {
-            await db.execute(
-                'UPDATE Billeteras SET Saldo = Saldo + ? WHERE ID_Billetera = ?',
-                [monto, destinoRows[0].ID_Billetera]
-            );
-        } else {
-            await db.execute(
-                'INSERT INTO Billeteras (Usuarios_ID_Usuarios, Moneda, Saldo) VALUES (?, ?, ?)',
-                [usuario_destino, moneda, monto]
-            );
-        }
-        
         // 5. Registrar transacción de transferencia
-        const [billeteraRows] = await db.execute(
-            'SELECT ID_Billetera FROM Billeteras WHERE Usuarios_ID_Usuarios = ? AND Moneda = ?',
-            [usuario_origen, moneda]
-        );
-        
-        const [result] = await db.execute(
-            `INSERT INTO Transacciones 
-             (Tipo_Transaccion, Monto, Moneda, Descripcion, Fecha_Transaccion, Usuarios_ID_Usuarios, Billeteras_ID_Billetera) 
-             VALUES (?, ?, ?, ?, NOW(), ?, ?)`,
-            ['transferencia', monto, moneda, descripcion, usuario_origen, billeteraRows[0].ID_Billetera]
-        );
-        
-        await db.commit();
-        return { id: result.insertId, message: 'Transferencia realizada exitosamente' };
-        
+
     } catch (error) {
         await db.rollback();
         throw new Error('Error en transferencia: ' + error.message);
     }
 };
+
+// Realizar retiro
+exports.withdraw = async (withdrawData) => {
+    try {
+        withdrawData = { usuario_id, monto, moneda, descripcion } ;
+        
+        // Verificar saldo
+        const [saldoRows] = await db.execute(
+            'SELECT Saldo, ID_Billetera FROM Billeteras WHERE Usuarios_ID_Usuarios = ? AND Moneda = ?',
+            [usuario_id, moneda]
+        );
+
+        return saldoRows
+        //toca agregar la funcion para que se retire y se registre la transaccion en el historial
+        // 1. Realizar retiro
+        // 2. Registrar transacción
+
+         } catch (error) {
+        throw new Error('Error en retiro: ' + error.message);
+    }
+};
+
 
