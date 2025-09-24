@@ -13,6 +13,6 @@ exports.forgotPassword = async (correo) => {
     return { message: `Se envió un enlace de recuperación al correo ${correo}` };
 };
 
-exports.resetPassword = async (token, newPassword) => {
+exports.resetPassword = async (newPassword) => {
     return { message: "Contraseña restablecida correctamente", token, newPassword };
 };

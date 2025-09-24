@@ -1,39 +1,27 @@
-const db = require('../config/db_config');
+const connection = require('../config/db_config');
 
 // Obtener saldo de la billetera del usuario
 exports.getBalance = async (userId) => {
-        const [rows] = await db.execute(`
-            SELECT Billeteras.Moneda, Billeteras.Saldo 
-            FROM Billeteras
-            INNER JOIN Transacciones ON Billeteras.ID_Billetera = Transacciones.Billeteras_ID_Billetera
-            WHERE Transacciones.Usuarios_ID_Usuarios = ?
-            ORDER BY Transacciones.Fecha_Transaccion 
-        `, [userId]);
+        const [rows] = await connection.execute(`
+            SELECT Moneda, Saldo FROM Billeteras WHERE ID_Usuarios = ?
+         `, [userId]);
         
-        return rows[0] || { Moneda: 'USD', Saldo: 0 };
+        return rows[0] || { Moneda: null, Saldo: 0 };
 };
 
 // Obtener historial de transferencias
 exports.getTransferHistory = async (userId) => {
-        const [rows] = await db.execute(`
-            SELECT Transacciones.*, Billeteras.Moneda 
-            FROM Transacciones
-            INNER JOIN Billeteras ON Transacciones.Billeteras_ID_Billetera = Billeteras.ID_Billetera
-            WHERE Transacciones.Usuarios_ID_Usuarios = ? AND Transacciones.Tipo_Transaccion = 'transferencia'
-            ORDER BY Transacciones.Fecha_Transaccion
-        `, [userId]);
+        const [rows] = await connection.execute(`
+            SELECT * FROM Transacciones WHERE ID_Usuarios = ? AND Tipo_Transaccion = 'transferencia
+            `, [userId]);
         
         return rows
 };
 
 // Obtener historial de retiros
 exports.getWithdrawalHistory = async (userId) => {
-        const [rows] = await db.execute(`
-            SELECT Transacciones.*, Billeteras.Moneda 
-            FROM Transacciones
-            INNER JOIN Billeteras ON Transacciones.Billeteras_ID_Billetera = Billeteras.ID_Billetera
-            WHERE Transacciones.Usuarios_ID_Usuarios = ? AND Transacciones.Tipo_Transaccion = 'retiro'
-            ORDER BY Transacciones.Fecha_Transaccion
+        const [rows] = await connection.execute(`
+            SELECT * FROM Transacciones WHERE ID_Usuarios = ? AND Tipo_Transaccion = 'retiro
         `, [userId]);
         
         return rows;
@@ -41,42 +29,34 @@ exports.getWithdrawalHistory = async (userId) => {
 
 // Obtener historial de depósitos
 exports.getDepositHistory = async (userId) => {
-        const [rows] = await db.execute(`
-            SELECT Transacciones.*, Billeteras.Moneda 
-            FROM Transacciones
-            INNER JOIN Billeteras ON Transacciones.Billeteras_ID_Billetera = Billeteras.ID_Billetera
-            WHERE Transacciones.Usuarios_ID_Usuarios = ? AND Transacciones.Tipo_Transaccion = 'deposito'
-            ORDER BY Transacciones.Fecha_Transaccion
-        `, [userId]);
+        const [rows] = await connection.execute(`
+            SELECT * FROM Transacciones WHERE ID_Usuarios = ? AND Tipo_Transaccion = 'deposito'
+            `, [userId]);
         
         return rows;
 };
 
 // Obtener todas las transacciones
 exports.getAllTransactions = async (userId) => {
-        const [rows] = await db.execute(`
-            SELECT Transacciones.*, Billeteras.Moneda 
-            FROM Transacciones
-            INNER JOIN Billeteras ON Transacciones.Billeteras_ID_Billetera = Billeteras.ID_Billetera
-            WHERE Transacciones.Usuarios_ID_Usuarios = ?
-            ORDER BY Transacciones.Fecha_Transaccion
-        `, [userId]);
+        const [rows] = await connection.execute(`
+            SELECT * FROM Transacciones WHERE ID_Usuarios = ?
+            `, [userId]);
         
         return rows;
 };
 
 // Realizar transferencia
 exports.transfer = async (transferData) => {
-    try {
-        transferData = { usuario_origen, usuario_destino, monto, moneda, descripcion } ;
-        
-        // 1. Verificar saldo suficiente
-        const [saldoRows] = await db.execute(
-            'SELECT Saldo FROM Billeteras WHERE Usuarios_ID_Usuarios = ? AND Moneda = ?',
-            [usuario_origen, moneda]
-        );
+    const { usuario_origen, usuario_destino, monto, moneda, descripcion } = transferData;
 
-        return saldoRows
+    const [result] = await connection.execute(
+        `INSERT INTO Transacciones (Usuarios_ID, Monto, Moneda, Tipo_Transaccion, Descripcion) 
+         VALUES (?, ?, ?, 'transferencia', ?)
+         `, [usuario_origen, monto, moneda, descripcion]
+    );
+
+    return { id: result.insertId, ...transferData };
+};
 
         //opciones a futuro
 
@@ -85,31 +65,35 @@ exports.transfer = async (transferData) => {
         // 4. Sumar al usuario destino (o crear billetera si no existe)
         // 5. Registrar transacción de transferencia
 
-    } catch (error) {
-        await db.rollback();
-        throw new Error('Error en transferencia: ' + error.message);
-    }
-};
 
 // Realizar retiro
 exports.withdraw = async (withdrawData) => {
-    try {
-        withdrawData = { usuario_id, monto, moneda, descripcion } ;
-        
-        // Verificar saldo
-        const [saldoRows] = await db.execute(
-            'SELECT Saldo, ID_Billetera FROM Billeteras WHERE Usuarios_ID_Usuarios = ? AND Moneda = ?',
-            [usuario_id, moneda]
-        );
+    const { usuario_id, monto, moneda, descripcion } = withdrawData;
 
-        return saldoRows
+    const [result] = await connection.execute(
+        `INSERT INTO Transacciones 
+         (ID_Usuarios, Monto, Moneda, Tipo_Transaccion, Descripcion) 
+         VALUES (?, ?, ?, 'retiro', ?)`,
+        [usuario_id, monto, moneda, descripcion]
+    );
+
+    return { id: result.insertId, ...withdrawData };
+};
         //toca agregar la funcion para que se retire y se registre la transaccion en el historial
         // 1. Realizar retiro
         // 2. Registrar transacción
 
-         } catch (error) {
-        throw new Error('Error en retiro: ' + error.message);
-    }
+
+// Realizar depósito
+exports.deposit = async (depositData) => {
+    const { usuario_id, monto, moneda, descripcion } = depositData;
+
+    const [result] = await connection.execute(
+        `INSERT INTO Transacciones 
+         (ID_Usuarios, Monto, Moneda, Tipo_Transaccion, Descripcion) 
+         VALUES (?, ?, ?, 'deposito', ?)`,
+        [usuario_id, monto, moneda, descripcion]
+    );
+
+    return { id: result.insertId, ...depositData };
 };
-
-

@@ -1,32 +1,51 @@
-const db = require('../config/db_config');
+const connection = require('../config/db_config');
 
 //obtener perfjl
 exports.getprofile = async () => {
-    const [rows] = await db.execute('SELECT * FROM Nombre_Usuario');
+    const [rows] = await connection.execute('SELECT * FROM Usuarios ');
     return rows;
 };
 
 //obtener ID
 exports.findById = async (id) => {
-    const [rows] = await db.execute('SELECT * FROM user WHERE id = ?', [id]);
+    const [rows] = await connection.execute('SELECT * FROM Usuarios WHERE ID_Usuarios = ?', [id]);
     return rows[0];
 };
 
 //actualizar contraseña
 exports.updatePassword = async (newPassword) => {
-    const [result] = await db.execute(
-        'UPDATE Nombre_Usuario SET Hash_Password = ? WHERE id = ?',
+    const [result] = await connection.execute(
+        'UPDATE Usuarios  SET Hash_Password = ? WHERE ID_Usuarios = ?',
         [newPassword.contrasena, newPassword.id]
     );
-    return { id: newPassword.id, contrasena: newPassword.contrasena};
+    return { id: newPassword.id, contrasena: newPassword.contrasena };
 };
 
 //actualizar usuario
 exports.updateuser = async (updateuser) => {
-    const [result] = await db.execute(
-        'UPDATE Nombre_Usuario SET nombre = ?, correo = ? WHERE id = ?',
+    const [result] = await connection.execute(
+        'UPDATE usuarios  SET Nombre = ?, Correo = ? WHERE ID_Usuarios = ?',
         [updateuser.nombre, updateuser.correo, updateuser.id]
     );
-    return { id: updateuser.id, nombre: updateuser.nombre, correo: updateuser.correo };
+    return updateuser;
 };
 
+// Crear usuario con billetera
+exports.createUser = async (nombre, correo, telefono, pin) => {
+    try {
+        // Validar que ningún parámetro sea undefined
+        if ([nombre, correo, telefono, pin].some(param => param === undefined)) {
+            throw new Error('Uno o más parámetros son undefined');
+        }
+        const query = `INSERT INTO Usuarios (Nombre_Usuario, Correo, Telefono, Pin_Seguridad, Fecha_Registro) VALUES (?, ?, ?, ?, NOW()
+        )`;
+        const [result] = await connection.execute(query, [nombre, correo, telefono, pin]
+        );
+
+        return result;
+
+    } catch (error) {
+        console.error('Error en createUser service:', error);
+        throw error;
+    }
+};
