@@ -62,7 +62,7 @@ try:
         Create_Tabla_Billeteras= """
         CREATE TABLE IF NOT EXISTS Billeteras (
           ID_Billetera INT AUTO_INCREMENT PRIMARY KEY,
-          Moneda CHAR(3) DEFAULT 'USD',
+          Moneda CHAR(3) DEFAULT 'COP',
           Saldo FLOAT DEFAULT 0.0,
           Estado VARCHAR(45) DEFAULT 'Activa',
           direccion_blockchain VARCHAR(255) NOT NULL,
@@ -108,15 +108,6 @@ try:
         """
         cursor.execute(Create_Tabla_Autenticaciones)
 
-        # Tabla Tipo_Identidad
-        Create_Tabla_TipoID= """
-        CREATE TABLE IF NOT EXISTS Tipo_Identidad (
-          ID_Tipo_Identidad INT AUTO_INCREMENT PRIMARY KEY,
-          Tipo_Identidad VARCHAR(45) NOT NULL,
-          Pais_Residencia VARCHAR(45) NOT NULL
-        )
-        """
-        cursor.execute(Create_Tabla_TipoID)
 
         # Tabla Tarjetas_Registro
         Create_Tabla_Tarjeta_Registro="""
@@ -124,11 +115,8 @@ try:
           ID_Tarjetas INT AUTO_INCREMENT PRIMARY KEY,
           Tipo_tarjeta VARCHAR(45) NOT NULL,
           Numero VARCHAR(45) NOT NULL UNIQUE,
-          Fecha_Vencimiento DATE,
           ID_Usuario INT NOT NULL,
-          ID_Tipo_Identidad INT NOT NULL,
-          FOREIGN KEY (ID_Usuario) REFERENCES Usuarios(ID_Usuarios),
-          FOREIGN KEY (ID_Tipo_Identidad) REFERENCES Tipo_Identidad(ID_Tipo_Identidad)
+          FOREIGN KEY (ID_Usuario) REFERENCES Usuarios(ID_Usuarios)
         )
         """
         cursor.execute(Create_Tabla_Tarjeta_Registro)
@@ -147,11 +135,11 @@ try:
         # Crear el procedimiento almacenado
         create_procedure = """
         CREATE PROCEDURE CrearUsuarioConBilletera(
-            IN p_nombre VARCHAR(100),
+            IN p_nombre_usuario VARCHAR(100),
             IN p_correo VARCHAR(150), 
             IN p_telefono VARCHAR(20),
-            IN p_contrasena VARCHAR(255),
-            IN p_pin VARCHAR(45)
+            IN p_hash_password VARCHAR(255),
+            IN p_pin_seguridad VARCHAR(45)
         )
         BEGIN
             DECLARE nuevo_usuario_id INT;
@@ -164,9 +152,9 @@ try:
 
             START TRANSACTION;
 
-            -- Insertar usuario (SOLO Hash_Password, sin campo Password duplicado)
+            -- Insertar usuario con Hash_Password y Pin_Seguridad
             INSERT INTO Usuarios (Nombre_Usuario, Correo, Telefono, Hash_Password, Pin_Seguridad)
-            VALUES (p_nombre, p_correo, p_telefono, SHA2(p_contrasena, 256), SHA2(p_pin, 256));
+            VALUES (p_nombre_usuario, p_correo, p_telefono, p_hash_password, p_pin_seguridad);
             
             SET nuevo_usuario_id = LAST_INSERT_ID();
             
@@ -181,7 +169,7 @@ try:
             -- Devolver resultados
             SELECT 
                 nuevo_usuario_id AS ID_Usuario,
-                p_nombre AS Nombre_Usuario,
+                p_nombre_usuario AS Nombre_Usuario,
                 p_correo AS Correo,
                 p_telefono AS Telefono,
                 nueva_billetera_id AS ID_Billetera,

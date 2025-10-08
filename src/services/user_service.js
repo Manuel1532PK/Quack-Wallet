@@ -15,37 +15,46 @@ exports.findById = async (id) => {
 //actualizar contraseña
 exports.updatePassword = async (newPassword) => {
     const [result] = await connection.execute(
-        'UPDATE Usuarios  SET Hash_Password = ? WHERE ID_Usuarios = ?',
-        [newPassword.contrasena, newPassword.id]
+        'UPDATE Usuarios SET Hash_Password = SHA2(?, 256) WHERE ID_Usuarios = ?',
+        [newPassword.hash_password, newPassword.id]
     );
-    return { id: newPassword.id, contrasena: newPassword.contrasena };
+    return { id: newPassword.id, hash_password: newPassword.hash_password };
 };
 
 //actualizar usuario
 exports.updateuser = async (updateuser) => {
     const [result] = await connection.execute(
-        'UPDATE usuarios  SET Nombre = ?, Correo = ? WHERE ID_Usuarios = ?',
-        [updateuser.nombre, updateuser.correo, updateuser.id]
+        'UPDATE Usuarios SET Nombre_Usuario = ?, Correo = ? WHERE ID_Usuarios = ?',
+        [updateuser.nombre_usuario, updateuser.correo, updateuser.id]
     );
     return updateuser;
 };
 
-// Crear usuario con billetera
-exports.createUser = async (nombre, correo, telefono, pin) => {
+// Crear usuario con billetera usando el procedimiento almacenado
+exports.createUser = async (userData) => {
     try {
-        // Validar que ningún parámetro sea undefined
-        if ([nombre, correo, telefono, pin].some(param => param === undefined)) {
-            throw new Error('Uno o más parámetros son undefined');
-        }
-        const query = `INSERT INTO Usuarios (Nombre_Usuario, Correo, Telefono, Pin_Seguridad, Fecha_Registro) VALUES (?, ?, ?, ?, NOW()
-        )`;
-        const [result] = await connection.execute(query, [nombre, correo, telefono, pin]
+        console.log('Datos recibidos:', userData); // Para debug
+
+        // Llamar al procedimiento almacenado
+        const [result] = await connection.execute(
+            'CALL CrearUsuarioConBilletera(?, ?, ?, ?, ?)',
+            [
+                userData.Nombre_Usuario,
+                userData.Correo,
+                userData.Telefono,
+                userData.Hash_Password,
+                userData.Pin_Seguridad
+            ]
         );
 
-        return result;
+        console.log('Resultado del procedimiento:', result); // Para debug
+
+        // El procedimiento devuelve un conjunto de resultados
+        return result[0][0];
 
     } catch (error) {
         console.error('Error en createUser service:', error);
         throw error;
     }
 };
+

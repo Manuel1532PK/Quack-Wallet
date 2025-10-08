@@ -71,22 +71,23 @@ exports.updatePassword = async (req, res) => {
 // Crear nuevo usuario
 exports.createUser = async (req, res) => {
     try {
-        const { nombre, correo, telefono, pin } = req.body;
-
         // Validar que todos los campos requeridos estén presentes
-        if (!nombre || !correo || !telefono || !pin) {
+        const requiredFields = ['Nombre_Usuario', 'Correo', 'Telefono', 'Hash_Password', 'Pin_Seguridad'];
+        const missingFields = requiredFields.filter(field => !req.body[field]);
+
+        if (missingFields.length > 0) {
             return res.status(400).json({
-                error: 'Todos los campos son requeridos: Nombre_Usuario, Correo, Telefono, Pin_Seguridad'
+                error: `Todos los campos son requeridos: ${missingFields.join(', ')}`
             });
         }
 
-        console.log('Datos recibidos:', { nombre, correo, telefono, pin });
+        console.log('Datos recibidos:', req.body);
 
-        const result = await userService.createUser(nombre, correo, telefono, pin);
+        const result = await userService.createUser(req.body);
         
         res.status(201).json({
             message: 'Usuario creado exitosamente',
-            userId: result.insertId
+            data: result
         });
     } catch (error) {
         console.error('Error en createUser:', error);
@@ -95,4 +96,23 @@ exports.createUser = async (req, res) => {
             details: error.message
         });
     }
+};
+
+exports.login = async (correo, password) => {
+    const [rows] = await connection.execute(
+        'SELECT * FROM Usuarios WHERE Correo = ?',
+        [correo]
+    );
+
+    const user = rows[0];
+    if (!user) throw new Error('Usuario no encontrado');
+
+    const valid = bcrypt.compareSync(password, user.Hash_Password);
+    if (!valid) throw new Error('Contraseña incorrecta');
+
+    return {
+        ID_Usuarios: user.ID_Usuarios,
+        Nombre_Usuario: user.Nombre_Usuario,
+        Correo: user.Correo
+    };
 };
